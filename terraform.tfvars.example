@@ -1,0 +1,37 @@
+# -----------------------------------------------------------------------------
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# -----------------------------------------------------------------------------
+
+# AWS Configuration
+aws_region = "us-west-2"
+environment = "prod"
+project_name = "woodpecker"
+
+# Networking
+vpc_cidr = "10.0.0.0/16"
+availability_zones = ["us-west-2a", "us-west-2b"]
+
+# Domain & SSL (optional - leave empty to use ALB DNS)
+domain_name = ""           # e.g., "ci.example.com"
+acm_certificate_arn = ""   # ARN of ACM certificate for HTTPS
+
+# Woodpecker Configuration
+woodpecker_version = "v2.8.3"
+woodpecker_admin_users = "your-github-username"
+woodpecker_forge_type = "github"
+woodpecker_forge_url = ""  # Only needed for self-hosted forges
+
+# GitHub OAuth (create at https://github.com/settings/developers)
+# Set callback URL to: https://your-domain/authorize
+woodpecker_github_client_id = ""
+woodpecker_github_client_secret = ""
+
+# Server Resources (minimal for cost savings)
+server_cpu = 256      # 0.25 vCPU
+server_memory = 512   # 512 MB
+
+# Agent Configuration (EC2 instances managed by Woodpecker Autoscaler)
+agent_instance_type = "t3.small"  # 2 vCPU, 2GB RAM
+agent_max_count = 5               # Maximum concurrent agent instances
+agent_max_workflows = 2           # Workflows per agent
