@@ -53,13 +53,31 @@ resource "aws_security_group" "ecs_tasks" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # GRPC port for agent communication (internal)
+  # HTTP from other ECS tasks (autoscaler needs to reach server API)
   ingress {
-    description = "GRPC from agents"
+    description = "HTTP from ECS tasks"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    self        = true
+  }
+
+  # GRPC port for agent communication (from ECS tasks)
+  ingress {
+    description = "GRPC from ECS tasks"
     from_port   = 9000
     to_port     = 9000
     protocol    = "tcp"
     self        = true
+  }
+
+  # GRPC port for agent communication (from EC2 agents)
+  ingress {
+    description     = "GRPC from EC2 agents"
+    from_port       = 9000
+    to_port         = 9000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.agent_ec2.id]
   }
 
   egress {

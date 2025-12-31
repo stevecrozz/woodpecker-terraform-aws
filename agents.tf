@@ -152,7 +152,7 @@ resource "aws_launch_template" "agent" {
       -e WOODPECKER_AGENT_SECRET=$AGENT_SECRET \
       -e WOODPECKER_MAX_WORKFLOWS=${var.agent_max_workflows} \
       -e WOODPECKER_LOG_LEVEL=info \
-      woodpeckerci/woodpecker-agent:${var.woodpecker_version}
+      ${local.agent_image}
   EOF
   )
 

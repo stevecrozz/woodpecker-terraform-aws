@@ -53,7 +53,7 @@ resource "aws_ecs_task_definition" "server" {
   container_definitions = jsonencode([
     {
       name      = "woodpecker-server"
-      image     = "woodpeckerci/woodpecker-server:${var.woodpecker_version}"
+      image     = local.server_image
       essential = true
 
       portMappings = [
@@ -101,6 +101,10 @@ resource "aws_ecs_task_definition" "server" {
           value = "info"
         },
         {
+          name  = "WOODPECKER_SERVER_ADDR"
+          value = ":8000"
+        },
+        {
           name  = "WOODPECKER_GRPC_ADDR"
           value = ":9000"
         }
@@ -138,13 +142,6 @@ resource "aws_ecs_task_definition" "server" {
         }
       }
 
-      healthCheck = {
-        command     = ["CMD-SHELL", "wget -q --spider http://localhost:8000/healthz || exit 1"]
-        interval    = 30
-        timeout     = 5
-        retries     = 3
-        startPeriod = 60
-      }
     }
   ])
 
@@ -175,7 +172,7 @@ resource "aws_ecs_service" "server" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.server.arn
   desired_count   = 1
-  launch_type     = "FARGATE" # Use regular Fargate for server (always running)
+  launch_type     = "FARGATE"
 
   network_configuration {
     subnets          = aws_subnet.private[*].id

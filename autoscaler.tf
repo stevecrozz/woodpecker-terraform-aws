@@ -4,6 +4,39 @@
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
+# Userdata template for EC2 agents (Amazon Linux 2023)
+# Uses Go template syntax - the autoscaler provides .Image and .Environment
+# -----------------------------------------------------------------------------
+
+locals {
+  agent_userdata_template = <<-USERDATA
+#!/bin/bash
+set -ex
+
+# Install Docker on Amazon Linux 2023
+dnf install -y docker
+systemctl enable docker
+systemctl start docker
+
+# Login to ECR (required even with IAM role - Docker needs explicit auth)
+aws ecr get-login-password --region ${var.aws_region} | \
+  docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
+
+# Run Woodpecker Agent
+# The autoscaler passes WOODPECKER_SERVER and WOODPECKER_AGENT_SECRET via .Environment
+docker run -d \
+  --name woodpecker-agent \
+  --restart always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e WOODPECKER_SERVER={{ index .Environment "WOODPECKER_SERVER" }} \
+  -e WOODPECKER_AGENT_SECRET={{ index .Environment "WOODPECKER_AGENT_SECRET" }} \
+  -e WOODPECKER_MAX_WORKFLOWS={{ index .Environment "WOODPECKER_MAX_WORKFLOWS" }} \
+  -e WOODPECKER_LOG_LEVEL=debug \
+  {{ .Image }}
+USERDATA
+}
+
+# -----------------------------------------------------------------------------
 # IAM Role for Autoscaler Task
 # -----------------------------------------------------------------------------
 
@@ -136,7 +169,7 @@ resource "aws_ecs_task_definition" "autoscaler" {
   container_definitions = jsonencode([
     {
       name      = "woodpecker-autoscaler"
-      image     = "woodpeckerci/autoscaler:latest"
+      image     = local.autoscaler_image
       essential = true
 
       environment = [
@@ -146,7 +179,7 @@ resource "aws_ecs_task_definition" "autoscaler" {
         },
         {
           name  = "WOODPECKER_SERVER"
-          value = "server.${var.project_name}.local:9000"
+          value = "http://server.${var.project_name}.local:8000"
         },
         {
           name  = "WOODPECKER_MIN_AGENTS"
@@ -159,10 +192,6 @@ resource "aws_ecs_task_definition" "autoscaler" {
         {
           name  = "WOODPECKER_WORKFLOWS_PER_AGENT"
           value = tostring(var.agent_max_workflows)
-        },
-        {
-          name  = "WOODPECKER_GRPC_SECURE"
-          value = "false"
         },
         # AWS Provider Configuration
         {
@@ -182,35 +211,50 @@ resource "aws_ecs_task_definition" "autoscaler" {
           value = var.agent_instance_type
         },
         {
-          name  = "WOODPECKER_AWS_IMAGE"
+          name  = "WOODPECKER_AWS_AMI_ID"
           value = data.aws_ami.amazon_linux_2023.id
         },
         {
-          name  = "WOODPECKER_AWS_SUBNET_ID"
-          value = aws_subnet.private[0].id
+          name  = "WOODPECKER_AWS_SUBNETS"
+          value = join(",", aws_subnet.private[*].id)
         },
         {
-          name  = "WOODPECKER_AWS_SECURITY_GROUP"
+          name  = "WOODPECKER_AWS_SECURITY_GROUPS"
           value = aws_security_group.agent_ec2.id
         },
         {
-          name  = "WOODPECKER_AWS_IAM_PROFILE_ARN"
+          name  = "WOODPECKER_AWS_IAM_INSTANCE_PROFILE_ARN"
           value = aws_iam_instance_profile.agent.arn
         },
         {
-          name  = "WOODPECKER_AWS_USER_DATA_BASE64"
-          value = aws_launch_template.agent.user_data
+          name  = "WOODPECKER_AWS_TAGS"
+          value = "ManagedBy=woodpecker-autoscaler,Project=${var.project_name}"
+        },
+        # GRPC address for agents to connect to server
+        {
+          name  = "WOODPECKER_GRPC_ADDR"
+          value = "server.${var.project_name}.local:9000"
         },
         {
-          name  = "WOODPECKER_AWS_TAGS"
-          value = "Name=${var.project_name}-agent,ManagedBy=woodpecker-autoscaler"
+          name  = "WOODPECKER_GRPC_SECURE"
+          value = "false"
+        },
+        # Agent image to deploy on EC2 instances
+        {
+          name  = "WOODPECKER_AGENT_IMAGE"
+          value = local.agent_image
+        },
+        # Custom userdata template for Amazon Linux 2023
+        {
+          name  = "WOODPECKER_PROVIDER_USERDATA"
+          value = local.agent_userdata_template
         }
       ]
 
       secrets = [
         {
-          name      = "WOODPECKER_AGENT_SECRET"
-          valueFrom = aws_secretsmanager_secret.woodpecker_agent_secret.arn
+          name      = "WOODPECKER_TOKEN"
+          valueFrom = aws_secretsmanager_secret.woodpecker_api_token.arn
         }
       ]
 

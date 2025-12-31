@@ -17,7 +17,7 @@ domain_name = ""           # e.g., "ci.example.com"
 acm_certificate_arn = ""   # ARN of ACM certificate for HTTPS
 
 # Woodpecker Configuration
-woodpecker_version = "v2.8.3"
+woodpecker_version = "v3.12.0"
 woodpecker_admin_users = "your-github-username"
 woodpecker_forge_type = "github"
 woodpecker_forge_url = ""  # Only needed for self-hosted forges
@@ -27,6 +27,10 @@ woodpecker_forge_url = ""  # Only needed for self-hosted forges
 woodpecker_github_client_id = ""
 woodpecker_github_client_secret = ""
 
+# Woodpecker API Token (create in Woodpecker UI → User Settings → Personal Access Tokens)
+# Required for autoscaler to manage agents
+woodpecker_api_token = ""
+
 # Server Resources (minimal for cost savings)
 server_cpu = 256      # 0.25 vCPU
 server_memory = 512   # 512 MB
@@ -35,3 +39,11 @@ server_memory = 512   # 512 MB
 agent_instance_type = "t3.small"  # 2 vCPU, 2GB RAM
 agent_max_count = 5               # Maximum concurrent agent instances
 agent_max_workflows = 2           # Workflows per agent
+
+# Container Registry (set to true to avoid Docker Hub rate limits)
+# After enabling, push images to ECR once:
+#   terraform output ecr_server_repository
+#   docker pull ghcr.io/woodpecker-ci/woodpecker-server:v3.12.0
+#   docker tag ... <ecr_url>:v3.12.0
+#   docker push <ecr_url>:v3.12.0
+use_ecr = false

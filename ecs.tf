@@ -94,7 +94,8 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         Resource = [
           aws_secretsmanager_secret.woodpecker_agent_secret.arn,
           aws_secretsmanager_secret.woodpecker_github_client.arn,
-          aws_secretsmanager_secret.woodpecker_github_secret.arn
+          aws_secretsmanager_secret.woodpecker_github_secret.arn,
+          aws_secretsmanager_secret.woodpecker_api_token.arn
         ]
       }
     ]

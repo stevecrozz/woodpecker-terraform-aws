@@ -57,3 +57,19 @@ resource "aws_secretsmanager_secret_version" "woodpecker_github_secret" {
   secret_string = var.woodpecker_github_client_secret != "" ? var.woodpecker_github_client_secret : "placeholder"
 }
 
+# API Token for Autoscaler (must be created manually in Woodpecker UI first)
+resource "aws_secretsmanager_secret" "woodpecker_api_token" {
+  name                    = "${var.project_name}/api-token"
+  description             = "Woodpecker API token for autoscaler"
+  recovery_window_in_days = 0
+
+  tags = {
+    Name = "${var.project_name}-api-token"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "woodpecker_api_token" {
+  secret_id     = aws_secretsmanager_secret.woodpecker_api_token.id
+  secret_string = var.woodpecker_api_token != "" ? var.woodpecker_api_token : "placeholder"
+}
+

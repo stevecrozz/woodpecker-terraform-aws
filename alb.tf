@@ -36,7 +36,7 @@ resource "aws_lb_target_group" "server" {
     interval            = 30
     path                = "/healthz"
     protocol            = "HTTP"
-    matcher             = "200"
+    matcher             = "200-204"
   }
 
   tags = {

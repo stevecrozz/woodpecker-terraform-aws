@@ -59,7 +59,7 @@ variable "acm_certificate_arn" {
 variable "woodpecker_version" {
   description = "Woodpecker CI version tag"
   type        = string
-  default     = "v2.8.3"
+  default     = "v3.12.0"
 }
 
 variable "woodpecker_admin_users" {
@@ -89,6 +89,13 @@ variable "woodpecker_github_client_id" {
 
 variable "woodpecker_github_client_secret" {
   description = "GitHub OAuth App Client Secret"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "woodpecker_api_token" {
+  description = "Woodpecker API token for autoscaler (create in Woodpecker UI → User Settings → Personal Access Tokens)"
   type        = string
   default     = ""
   sensitive   = true
@@ -130,5 +137,39 @@ variable "agent_max_workflows" {
   description = "Maximum concurrent workflows per agent"
   type        = number
   default     = 2
+}
+
+# -----------------------------------------------------------------------------
+# Container Registry
+# -----------------------------------------------------------------------------
+
+variable "use_ecr" {
+  description = "Use ECR for container images (avoids Docker Hub rate limits)"
+  type        = bool
+  default     = false
+}
+
+variable "push_images_to_ecr" {
+  description = "Automatically pull and push images to ECR (requires docker/podman locally)"
+  type        = bool
+  default     = false
+}
+
+variable "container_runtime" {
+  description = "Container runtime to use for pushing images (docker or podman)"
+  type        = string
+  default     = "podman"
+}
+
+variable "build_custom_ami" {
+  description = "Build a custom AMI with ECR credential helper pre-installed"
+  type        = bool
+  default     = false
+}
+
+variable "custom_agent_ami_id" {
+  description = "Custom AMI ID to use for agents (if already built). Takes precedence over build_custom_ami."
+  type        = string
+  default     = ""
 }
 
