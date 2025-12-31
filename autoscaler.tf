@@ -100,60 +100,6 @@ resource "aws_cloudwatch_log_group" "autoscaler" {
 }
 
 # -----------------------------------------------------------------------------
-# Autoscaler Configuration stored in SSM Parameter
-# -----------------------------------------------------------------------------
-
-resource "aws_ssm_parameter" "autoscaler_config" {
-  name = "/${var.project_name}/autoscaler/config"
-  type = "String"
-  value = yamlencode({
-    log_level = "info"
-
-    server = {
-      addr  = "server.${var.project_name}.local:9000"
-      token = "$WOODPECKER_AGENT_SECRET" # Will be substituted at runtime
-    }
-
-    agents = {
-      min = 0
-      max = var.agent_max_count
-    }
-
-    workflows = {
-      min             = 0
-      max             = var.agent_max_count * var.agent_max_workflows
-      per_agent       = var.agent_max_workflows
-      labels_strategy = "default"
-    }
-
-    pool = {
-      min = 0
-    }
-
-    provider = {
-      type = "aws"
-      aws = {
-        region            = var.aws_region
-        instance_type     = var.agent_instance_type
-        image_id          = data.aws_ami.amazon_linux_2023.id
-        subnet_id         = aws_subnet.private[0].id
-        security_group_id = aws_security_group.agent_ec2.id
-        iam_profile_arn   = aws_iam_instance_profile.agent.arn
-        user_data_base64  = aws_launch_template.agent.user_data
-        tags = {
-          Name      = "${var.project_name}-agent"
-          ManagedBy = "woodpecker-autoscaler"
-        }
-      }
-    }
-  })
-
-  tags = {
-    Name = "${var.project_name}-autoscaler-config"
-  }
-}
-
-# -----------------------------------------------------------------------------
 # Autoscaler Task Definition
 # -----------------------------------------------------------------------------
 

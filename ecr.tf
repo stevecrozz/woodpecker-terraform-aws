@@ -1,14 +1,11 @@
 # -----------------------------------------------------------------------------
 # ECR Repositories for Woodpecker Images
-# Avoids Docker Hub rate limits
 # -----------------------------------------------------------------------------
 
 resource "aws_ecr_repository" "woodpecker_server" {
-  count = var.use_ecr ? 1 : 0
-
   name                 = "${var.project_name}-server"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true # Allow destroying repo with images
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = false
@@ -20,8 +17,6 @@ resource "aws_ecr_repository" "woodpecker_server" {
 }
 
 resource "aws_ecr_repository" "woodpecker_agent" {
-  count = var.use_ecr ? 1 : 0
-
   name                 = "${var.project_name}-agent"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
@@ -36,8 +31,6 @@ resource "aws_ecr_repository" "woodpecker_agent" {
 }
 
 resource "aws_ecr_repository" "woodpecker_autoscaler" {
-  count = var.use_ecr ? 1 : 0
-
   name                 = "${var.project_name}-autoscaler"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
@@ -56,9 +49,7 @@ resource "aws_ecr_repository" "woodpecker_autoscaler" {
 # -----------------------------------------------------------------------------
 
 resource "aws_ecr_lifecycle_policy" "woodpecker_server" {
-  count = var.use_ecr ? 1 : 0
-
-  repository = aws_ecr_repository.woodpecker_server[0].name
+  repository = aws_ecr_repository.woodpecker_server.name
 
   policy = jsonencode({
     rules = [{
@@ -77,9 +68,7 @@ resource "aws_ecr_lifecycle_policy" "woodpecker_server" {
 }
 
 resource "aws_ecr_lifecycle_policy" "woodpecker_agent" {
-  count = var.use_ecr ? 1 : 0
-
-  repository = aws_ecr_repository.woodpecker_agent[0].name
+  repository = aws_ecr_repository.woodpecker_agent.name
 
   policy = jsonencode({
     rules = [{
@@ -98,9 +87,7 @@ resource "aws_ecr_lifecycle_policy" "woodpecker_agent" {
 }
 
 resource "aws_ecr_lifecycle_policy" "woodpecker_autoscaler" {
-  count = var.use_ecr ? 1 : 0
-
-  repository = aws_ecr_repository.woodpecker_autoscaler[0].name
+  repository = aws_ecr_repository.woodpecker_autoscaler.name
 
   policy = jsonencode({
     rules = [{
@@ -123,27 +110,23 @@ resource "aws_ecr_lifecycle_policy" "woodpecker_autoscaler" {
 # -----------------------------------------------------------------------------
 
 locals {
-  # Use Docker Hub as primary source (ghcr.io has access issues)
-  server_image = var.use_ecr ? "${aws_ecr_repository.woodpecker_server[0].repository_url}:${var.woodpecker_version}" : "docker.io/woodpeckerci/woodpecker-server:${var.woodpecker_version}"
-
-  agent_image = var.use_ecr ? "${aws_ecr_repository.woodpecker_agent[0].repository_url}:${var.woodpecker_version}" : "docker.io/woodpeckerci/woodpecker-agent:${var.woodpecker_version}"
-
-  autoscaler_image = var.use_ecr ? "${aws_ecr_repository.woodpecker_autoscaler[0].repository_url}:latest" : "docker.io/woodpeckerci/autoscaler:latest"
+  server_image     = "${aws_ecr_repository.woodpecker_server.repository_url}:${var.woodpecker_version}"
+  agent_image      = "${aws_ecr_repository.woodpecker_agent.repository_url}:${var.woodpecker_version}"
+  autoscaler_image = "${aws_ecr_repository.woodpecker_autoscaler.repository_url}:latest"
 }
 
 # -----------------------------------------------------------------------------
 # Push images to ECR (optional, requires docker/podman locally)
 # -----------------------------------------------------------------------------
 
-# Data source to get AWS account ID for ECR login
 data "aws_caller_identity" "current" {}
 
 resource "null_resource" "push_server_image" {
-  count = var.use_ecr && var.push_images_to_ecr ? 1 : 0
+  count = var.push_images_to_ecr ? 1 : 0
 
   triggers = {
     version = var.woodpecker_version
-    repo    = aws_ecr_repository.woodpecker_server[0].repository_url
+    repo    = aws_ecr_repository.woodpecker_server.repository_url
   }
 
   provisioner "local-exec" {
@@ -151,8 +134,8 @@ resource "null_resource" "push_server_image" {
       aws ecr get-login-password --region ${var.aws_region} | \
         ${var.container_runtime} login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
       ${var.container_runtime} pull docker.io/woodpeckerci/woodpecker-server:${var.woodpecker_version}
-      ${var.container_runtime} tag docker.io/woodpeckerci/woodpecker-server:${var.woodpecker_version} ${aws_ecr_repository.woodpecker_server[0].repository_url}:${var.woodpecker_version}
-      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_server[0].repository_url}:${var.woodpecker_version}
+      ${var.container_runtime} tag docker.io/woodpeckerci/woodpecker-server:${var.woodpecker_version} ${aws_ecr_repository.woodpecker_server.repository_url}:${var.woodpecker_version}
+      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_server.repository_url}:${var.woodpecker_version}
     EOF
   }
 
@@ -160,11 +143,11 @@ resource "null_resource" "push_server_image" {
 }
 
 resource "null_resource" "push_agent_image" {
-  count = var.use_ecr && var.push_images_to_ecr ? 1 : 0
+  count = var.push_images_to_ecr ? 1 : 0
 
   triggers = {
     version = var.woodpecker_version
-    repo    = aws_ecr_repository.woodpecker_agent[0].repository_url
+    repo    = aws_ecr_repository.woodpecker_agent.repository_url
   }
 
   provisioner "local-exec" {
@@ -172,8 +155,8 @@ resource "null_resource" "push_agent_image" {
       aws ecr get-login-password --region ${var.aws_region} | \
         ${var.container_runtime} login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
       ${var.container_runtime} pull docker.io/woodpeckerci/woodpecker-agent:${var.woodpecker_version}
-      ${var.container_runtime} tag docker.io/woodpeckerci/woodpecker-agent:${var.woodpecker_version} ${aws_ecr_repository.woodpecker_agent[0].repository_url}:${var.woodpecker_version}
-      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_agent[0].repository_url}:${var.woodpecker_version}
+      ${var.container_runtime} tag docker.io/woodpeckerci/woodpecker-agent:${var.woodpecker_version} ${aws_ecr_repository.woodpecker_agent.repository_url}:${var.woodpecker_version}
+      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_agent.repository_url}:${var.woodpecker_version}
     EOF
   }
 
@@ -181,10 +164,10 @@ resource "null_resource" "push_agent_image" {
 }
 
 resource "null_resource" "push_autoscaler_image" {
-  count = var.use_ecr && var.push_images_to_ecr ? 1 : 0
+  count = var.push_images_to_ecr ? 1 : 0
 
   triggers = {
-    repo = aws_ecr_repository.woodpecker_autoscaler[0].repository_url
+    repo = aws_ecr_repository.woodpecker_autoscaler.repository_url
   }
 
   provisioner "local-exec" {
@@ -192,11 +175,10 @@ resource "null_resource" "push_autoscaler_image" {
       aws ecr get-login-password --region ${var.aws_region} | \
         ${var.container_runtime} login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
       ${var.container_runtime} pull docker.io/woodpeckerci/autoscaler:latest
-      ${var.container_runtime} tag docker.io/woodpeckerci/autoscaler:latest ${aws_ecr_repository.woodpecker_autoscaler[0].repository_url}:latest
-      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_autoscaler[0].repository_url}:latest
+      ${var.container_runtime} tag docker.io/woodpeckerci/autoscaler:latest ${aws_ecr_repository.woodpecker_autoscaler.repository_url}:latest
+      ${var.container_runtime} push ${aws_ecr_repository.woodpecker_autoscaler.repository_url}:latest
     EOF
   }
 
   depends_on = [aws_ecr_repository.woodpecker_autoscaler]
 }
-

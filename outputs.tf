@@ -60,10 +60,6 @@ output "autoscaler_service_name" {
   value       = aws_ecs_service.autoscaler.name
 }
 
-output "agent_launch_template_id" {
-  description = "ID of the EC2 launch template for agents"
-  value       = aws_launch_template.agent.id
-}
 
 # -----------------------------------------------------------------------------
 # Storage Outputs
@@ -112,28 +108,21 @@ output "server_internal_dns" {
 }
 
 # -----------------------------------------------------------------------------
-# ECR Outputs (when use_ecr = true)
+# ECR Outputs
 # -----------------------------------------------------------------------------
 
 output "ecr_server_repository" {
   description = "ECR repository URL for server image"
-  value       = var.use_ecr ? aws_ecr_repository.woodpecker_server[0].repository_url : null
+  value       = aws_ecr_repository.woodpecker_server.repository_url
 }
 
 output "ecr_agent_repository" {
   description = "ECR repository URL for agent image"
-  value       = var.use_ecr ? aws_ecr_repository.woodpecker_agent[0].repository_url : null
+  value       = aws_ecr_repository.woodpecker_agent.repository_url
 }
 
 output "ecr_autoscaler_repository" {
   description = "ECR repository URL for autoscaler image"
-  value       = var.use_ecr ? aws_ecr_repository.woodpecker_autoscaler[0].repository_url : null
-}
-
-# Debug output - shows exactly what WOODPECKER_PROVIDER_USERDATA will be sent to ECS
-output "debug_autoscaler_userdata" {
-  description = "The user data template that will be passed to the autoscaler (for debugging)"
-  value       = local.agent_userdata_template
-  sensitive   = false
+  value       = aws_ecr_repository.woodpecker_autoscaler.repository_url
 }
 

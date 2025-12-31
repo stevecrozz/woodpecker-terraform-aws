@@ -140,19 +140,13 @@ variable "agent_max_workflows" {
 }
 
 # -----------------------------------------------------------------------------
-# Container Registry
+# Container Images
 # -----------------------------------------------------------------------------
 
-variable "use_ecr" {
-  description = "Use ECR for container images (avoids Docker Hub rate limits)"
-  type        = bool
-  default     = false
-}
-
 variable "push_images_to_ecr" {
-  description = "Automatically pull and push images to ECR (requires docker/podman locally)"
+  description = "Pull images from Docker Hub and push to ECR during apply (requires docker/podman locally)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "container_runtime" {
@@ -160,16 +154,3 @@ variable "container_runtime" {
   type        = string
   default     = "podman"
 }
-
-variable "build_custom_ami" {
-  description = "Build a custom AMI with ECR credential helper pre-installed"
-  type        = bool
-  default     = false
-}
-
-variable "custom_agent_ami_id" {
-  description = "Custom AMI ID to use for agents (if already built). Takes precedence over build_custom_ami."
-  type        = string
-  default     = ""
-}
-

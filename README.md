@@ -2,6 +2,19 @@
 
 A cost-optimized deployment of [Woodpecker CI](https://woodpecker-ci.org/) on AWS using Terraform. This setup uses **Woodpecker's built-in autoscaler** to manage EC2 agent instances, scaling to zero when idle.
 
+## ⚠️ Project Status
+
+**Alpha / Proof of Concept** - This has been deployed successfully once. Use at your own risk.
+
+**Not production-ready:**
+- No HTTPS configured (HTTP only via ALB DNS)
+- Single NAT Gateway (not HA - if it fails, agents lose internet)
+- SQLite on EFS (works, but PostgreSQL recommended for high concurrency)
+- No automated EFS backups
+- Secrets stored in Terraform state (use remote state with encryption)
+- No CloudWatch alarms or alerting
+- 7-day log retention (may be too short for production debugging)
+
 ## Architecture
 
 ```
@@ -42,6 +55,10 @@ The **Woodpecker Autoscaler** is Woodpecker's official solution for managing age
 
 This is event-driven at the application level - the autoscaler reacts to Woodpecker's internal queue state, not external metrics.
 
+## Container Images
+
+Container images are stored in **ECR** (Elastic Container Registry) to avoid Docker Hub rate limits. During `terraform apply`, images are automatically pulled from Docker Hub and pushed to your ECR repositories (requires Docker or Podman locally).
+
 ## Cost Optimization Features
 
 | Feature | Savings |
@@ -68,7 +85,8 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
 
 1. AWS CLI configured with appropriate credentials
 2. Terraform >= 1.5.0
-3. A GitHub OAuth App (or other forge credentials)
+3. Docker or Podman (for pushing images to ECR)
+4. A GitHub OAuth App (or other forge credentials)
 
 ### Creating a GitHub OAuth App
 
@@ -77,8 +95,10 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
 3. Fill in:
    - **Application name**: Woodpecker CI
    - **Homepage URL**: Your Woodpecker URL (ALB DNS or custom domain)
-   - **Authorization callback URL**: `https://your-domain/authorize`
+   - **Authorization callback URL**: `http://your-alb-dns/authorize` (update after deploy)
 4. Save the Client ID and Client Secret
+
+> **Note**: You can use HTTP with the ALB DNS name for testing. For production, set up a custom domain with HTTPS.
 
 ## Quick Start
 
@@ -95,13 +115,17 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
    terraform apply
    ```
 
-3. **Get the URL:**
+3. **Get the URL and update GitHub OAuth:**
    ```bash
    terraform output woodpecker_url
    ```
+   Update your GitHub OAuth App's callback URL to `<woodpecker_url>/authorize`
 
-4. **Update GitHub OAuth callback:**
-   - Update your GitHub OAuth App's callback URL with the ALB DNS or your custom domain
+4. **Create API token for autoscaler:**
+   - Log into Woodpecker at the URL from step 3
+   - Go to User Settings → Personal Access Tokens
+   - Create a token and add it to `terraform.tfvars` as `woodpecker_api_token`
+   - Run `terraform apply` again to update the autoscaler
 
 ## Configuration
 
@@ -112,6 +136,7 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
 | `woodpecker_github_client_id` | GitHub OAuth Client ID |
 | `woodpecker_github_client_secret` | GitHub OAuth Client Secret |
 | `woodpecker_admin_users` | Comma-separated list of admin usernames |
+| `woodpecker_api_token` | API token for autoscaler (create after first deploy) |
 
 ### Optional Variables
 
@@ -120,12 +145,14 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
 | `aws_region` | `us-west-2` | AWS region |
 | `domain_name` | `""` | Custom domain (uses ALB DNS if empty) |
 | `acm_certificate_arn` | `""` | ACM certificate for HTTPS |
-| `woodpecker_version` | `v2.8.3` | Woodpecker version tag |
+| `woodpecker_version` | see variables.tf | Woodpecker version tag |
 | `server_cpu` | `256` | Server CPU units (256 = 0.25 vCPU) |
 | `server_memory` | `512` | Server memory in MB |
 | `agent_instance_type` | `t3.small` | EC2 instance type for agents |
 | `agent_max_count` | `5` | Maximum concurrent agent instances |
 | `agent_max_workflows` | `2` | Concurrent workflows per agent |
+| `push_images_to_ecr` | `true` | Auto-push images from Docker Hub to ECR |
+| `container_runtime` | `podman` | Container runtime for pushing images |
 
 ## Custom Domain Setup
 
@@ -156,10 +183,9 @@ aws logs tail /ecs/woodpecker/server --follow
 
 # Autoscaler logs
 aws logs tail /ecs/woodpecker/autoscaler --follow
-
-# Agent logs (on EC2 instances)
-aws logs tail /ecs/woodpecker/agent --follow
 ```
+
+Agent logs are on the EC2 instances themselves (use `docker logs woodpecker-agent` via SSH or Session Manager).
 
 ### Check Running Agents
 
@@ -208,6 +234,12 @@ aws ecs describe-services \
 2. Check client ID and secret are correct
 3. Ensure WOODPECKER_HOST matches the actual URL
 
+### Image pull errors on agents
+
+1. Check agent instance has IAM role with ECR permissions
+2. Verify ECR login step runs in user data script
+3. Check EC2 console output: `aws ec2 get-console-output --instance-id <id>`
+
 ## Cleanup
 
 ```bash
@@ -219,7 +251,7 @@ aws ec2 describe-instances \
 terraform destroy
 ```
 
-**Note**: EFS data will be deleted. Back up important data before destroying.
+**Note**: EFS data and ECR images will be deleted. Back up important data before destroying.
 
 ## Security Considerations
 
