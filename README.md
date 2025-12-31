@@ -59,6 +59,25 @@ This is event-driven at the application level - the autoscaler reacts to Woodpec
 
 Container images are stored in **ECR** (Elastic Container Registry) to avoid Docker Hub rate limits. During `terraform apply`, images are automatically pulled from Docker Hub and pushed to your ECR repositories (requires Docker or Podman locally).
 
+### ECR Access in Pipelines
+
+Agents are configured with the [ECR credential helper](https://github.com/awslabs/amazon-ecr-credential-helper), which automatically authenticates to ECR using the instance IAM role. This means your pipelines can:
+
+- **Pull private base images** from your ECR repositories
+- **Push built images** to ECR without hardcoding credentials
+
+Example pipeline step:
+```yaml
+steps:
+  - name: build-and-push
+    image: docker
+    commands:
+      - docker build -t $ECR_REPO:$CI_COMMIT_SHA .
+      - docker push $ECR_REPO:$CI_COMMIT_SHA
+    environment:
+      ECR_REPO: 123456789.dkr.ecr.us-west-2.amazonaws.com/my-app
+```
+
 ## Cost Optimization Features
 
 | Feature | Savings |

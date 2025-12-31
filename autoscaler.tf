@@ -13,24 +13,33 @@ locals {
 #!/bin/bash
 set -ex
 
-# Install Docker on Amazon Linux 2023
-dnf install -y docker
+# Install Docker and ECR credential helper on Amazon Linux 2023
+dnf install -y docker amazon-ecr-credential-helper
 systemctl enable docker
 systemctl start docker
 
-# Login to ECR (required even with IAM role - Docker needs explicit auth)
-aws ecr get-login-password --region ${var.aws_region} | \
-  docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
+# Configure Docker to use ECR credential helper (auto-refreshes tokens via IAM role)
+mkdir -p /root/.docker
+cat > /root/.docker/config.json << 'DOCKERCONFIG'
+{
+  "credHelpers": {
+    "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com": "ecr-login"
+  }
+}
+DOCKERCONFIG
 
 # Run Woodpecker Agent
 # The autoscaler passes WOODPECKER_SERVER and WOODPECKER_AGENT_SECRET via .Environment
+# Mount docker config so pipelines can pull/push private ECR images
 docker run -d \
   --name woodpecker-agent \
   --restart always \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /root/.docker/config.json:/root/.docker/config.json:ro \
   -e WOODPECKER_SERVER={{ index .Environment "WOODPECKER_SERVER" }} \
   -e WOODPECKER_AGENT_SECRET={{ index .Environment "WOODPECKER_AGENT_SECRET" }} \
   -e WOODPECKER_MAX_WORKFLOWS={{ index .Environment "WOODPECKER_MAX_WORKFLOWS" }} \
+  -e WOODPECKER_DOCKER_CONFIG=/root/.docker/config.json \
   -e WOODPECKER_LOG_LEVEL=debug \
   {{ .Image }}
 USERDATA
