@@ -22,6 +22,14 @@ woodpecker_admin_users = "your-github-username"
 woodpecker_forge_type = "github"
 woodpecker_forge_url = ""  # Only needed for self-hosted forges
 
+# Organization Access Control (optional)
+# If set, only members of these GitHub orgs can use Woodpecker
+# woodpecker_orgs = "my-org,other-org"
+
+# Repo Visibility (optional)
+# If set, only repos owned by these users/orgs are visible
+# woodpecker_repo_owners = "my-org"
+
 # GitHub OAuth (create at https://github.com/settings/developers)
 # Set callback URL to: https://your-domain/authorize
 woodpecker_github_client_id = ""

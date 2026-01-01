@@ -101,6 +101,18 @@ variable "woodpecker_api_token" {
   sensitive   = true
 }
 
+variable "woodpecker_orgs" {
+  description = "Comma-separated list of GitHub organizations allowed to use Woodpecker. If set, WOODPECKER_OPEN is enabled automatically."
+  type        = string
+  default     = ""
+}
+
+variable "woodpecker_repo_owners" {
+  description = "Comma-separated list of repo owners (users/orgs) whose repos are visible in Woodpecker. Empty means all repos the user has access to."
+  type        = string
+  default     = ""
+}
+
 # -----------------------------------------------------------------------------
 # ECS Server Configuration
 # -----------------------------------------------------------------------------

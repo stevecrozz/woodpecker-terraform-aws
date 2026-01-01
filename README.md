@@ -172,6 +172,8 @@ steps:
 | `agent_max_workflows` | `2` | Concurrent workflows per agent |
 | `push_images_to_ecr` | `true` | Auto-push images from Docker Hub to ECR |
 | `container_runtime` | `podman` | Container runtime for pushing images |
+| `woodpecker_orgs` | `""` | Restrict login to GitHub org members (comma-separated) |
+| `woodpecker_repo_owners` | `""` | Only show repos from these owners (comma-separated) |
 
 ## Custom Domain Setup
 

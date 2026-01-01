@@ -74,7 +74,15 @@ resource "aws_ecs_task_definition" "server" {
         },
         {
           name  = "WOODPECKER_OPEN"
-          value = "false"
+          value = var.woodpecker_orgs != "" ? "true" : "false"
+        },
+        {
+          name  = "WOODPECKER_ORGS"
+          value = var.woodpecker_orgs
+        },
+        {
+          name  = "WOODPECKER_REPO_OWNERS"
+          value = var.woodpecker_repo_owners
         },
         {
           name  = "WOODPECKER_ADMIN"
